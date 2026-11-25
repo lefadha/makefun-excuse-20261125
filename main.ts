@@ -10,6 +10,7 @@
 // characters, one line, no newline smuggled onto the end, and the count taken
 // in code points the way a reader counts rather than in UTF-16 units.
 
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -78,5 +79,6 @@ if (Buffer.byteLength(written, "utf8") !== Buffer.byteLength(text, "utf8")) {
 }
 
 process.stdout.write(
-  `wrote ${target}: ${Array.from(written).length} characters, ${Buffer.byteLength(written, "utf8")} bytes\n`,
+  `wrote ${target}: ${Array.from(written).length} characters, ${Buffer.byteLength(written, "utf8")} bytes, ` +
+    `sha256 ${createHash("sha256").update(written, "utf8").digest("hex").slice(0, 16)}\n`,
 );

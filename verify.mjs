@@ -9,6 +9,7 @@
 //   node verify.mjs            # exit 0 only when every check passes
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -33,24 +34,33 @@ const b = mkdtempSync(join(tmpdir(), "excuse-b-"));
 
 function run(out) {
   // Run from / so a relative path can never be what makes it work.
-  execFileSync(process.execPath, [join(HERE, "main.ts")], {
+  const stdout = execFileSync(process.execPath, [join(HERE, "main.ts")], {
     env: { ...process.env, MAKEFUN_OUTPUT_DIR: out },
     cwd: "/",
     stdio: "pipe",
-  });
-  return readFileSync(join(out, "entry.txt"));
+  }).toString();
+  return { buf: readFileSync(join(out, "entry.txt")), stdout };
 }
 
 let bufA;
 let bufB;
+let saidA = "";
 try {
-  bufA = run(a);
-  bufB = run(b);
+  const first = run(a);
+  const second = run(b);
+  bufA = first.buf;
+  bufB = second.buf;
+  saidA = first.stdout;
 } catch (e) {
   check("main.ts exits 0", false, String(e.stderr || e.message).trim().slice(0, 300));
   process.exit(1);
 }
 check("main.ts exits 0", true);
+check(
+  "main.ts reports the hash of the bytes it wrote",
+  saidA.includes(createHash("sha256").update(bufA).digest("hex").slice(0, 16)),
+  saidA.trim(),
+);
 
 check("writes exactly entry.txt", existsSync(join(a, "entry.txt")));
 check("two runs are byte-identical", Buffer.compare(bufA, bufB) === 0, `${bufA.length} B`);
